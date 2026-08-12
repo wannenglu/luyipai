@@ -1,0 +1,32 @@
+.mask{
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.6);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
+}
+.dialog{
+  width:82%;
+  background:#fff;
+  border-radius:16rpx;
+  padding:40rpx 30rpx;
+}
+.title{
+  font-size:34rpx;
+  font-weight:bold;
+  text-align:center;
+  margin-bottom:30rpx;
+}
+.input{
+  border:1rpx solid #eee;
+  border-radius:8rpx;
+  padding:22rpx 24rpx;
+  font-size:30rpx;
+  margin-bottom:30rpx;
+}
+.btn{
+  background:#007aff;
+  color:#fff;
+}

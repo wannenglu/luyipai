@@ -1,0 +1,8 @@
+{
+  "usingComponents": {
+    "pwd-modal": "../../components/pwd-modal/pwd-modal",
+    "admin-modal": "../../components/admin-modal/admin-modal"
+  },
+  "navigationBarTitleText": "微信PC历史版本查询",
+  "onReachBottomDistance": 100
+}

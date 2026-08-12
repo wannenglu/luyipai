@@ -1,0 +1,108 @@
+.container{
+  padding:30rpx;
+  background:#f7f8fa;
+  min-height:100vh;
+}
+.form-item{
+  margin-bottom:28rpx;
+}
+.label{
+  font-size:32rpx;
+  margin-bottom:16rpx;
+  color:#222;
+}
+/*单行输入框统一样式*/
+.input{
+  width:100%;
+  box-sizing:border-box;
+  background:#ffffff;
+  padding:0 24rpx;
+  border-radius:10rpx;
+  border:1rpx solid #e5e7eb;
+  font-size:30rpx;
+  color:#333;
+  height:88rpx;
+  line-height:88rpx;
+}
+.input::placeholder{
+  color:#bbbbbb;
+}
+/*多行文本域*/
+.textarea{
+  width:100%;
+  box-sizing:border-box;
+  background:#fff;
+  padding:24rpx;
+  border-radius:10rpx;
+  border:1rpx solid #e5e7eb;
+  min-height:220rpx;
+  font-size:30rpx;
+  color:#333;
+}
+.textarea::placeholder{
+  color:#bbbbbb;
+}
+
+.save-btn{
+  background:#007aff;
+  color:#fff;
+  margin-top:20rpx;
+  font-size:34rpx;
+  height:96rpx;
+  border-radius:12rpx;
+}
+/*去除按钮默认边框*/
+.save-btn::after{
+  border:none;
+}
+
+.divider{
+  height:1rpx;
+  background:#ddd;
+  margin:40rpx 0;
+}
+.list-title{
+  font-size:32rpx;
+  font-weight:bold;
+  margin-bottom:20rpx;
+}
+.list-wrap{
+  height:600rpx;
+}
+.list-item{
+  background:#fff;
+  border-radius:12rpx;
+  padding:24rpx;
+  margin-bottom:16rpx;
+}
+.info{
+  font-size:26rpx;
+  color:#444;
+  line-height:1.8;
+  display:flex;
+  flex-direction:column;
+  gap:6rpx;
+}
+.btns{
+  display:flex;
+  gap:16rpx;
+  margin-top:16rpx;
+}
+.edit-tip{
+  background:#fff2cc;
+  padding:20rpx 24rpx;
+  border-radius:10rpx;
+  margin-bottom:28rpx;
+  font-size:28rpx;
+  color:#c28900;
+}
+.reset-btn{
+  color:#007aff;
+  margin-left:12rpx;
+}
+picker{
+  width: 100%;
+}
+picker .input{
+  margin: 0;
+}

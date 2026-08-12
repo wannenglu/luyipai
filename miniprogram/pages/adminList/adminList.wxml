@@ -1,0 +1,32 @@
+<view class="container">
+  <!--搜索区域-->
+  <view class="search-bar">
+    <input class="search-input" placeholder="输入版本号搜索" value="{{keyword}}" bindinput="onKeywordInput"/>
+    <button class="search-btn" bindtap="searchData">搜索</button>
+  </view>
+
+  <!--无数据提示-->
+  <view wx:if="{{list.length === 0}}" class="empty-tip">暂无版本数据</view>
+
+  <!--列表-->
+  <view wx:else>
+    <view wx:for="{{list}}" wx:key="_id" class="item">
+      <view class="info">
+        <text>版本：{{item.version}}</text>
+        <text wx:if="{{item.remark}}">标签：{{item.remark}}</text>
+        <text>日期：{{item.releaseDate}}</text>
+      </view>
+      <view class="btn-group">
+        <button size="mini" bindtap="editItem" data-id="{{item._id}}">编辑</button>
+        <button size="mini" bindtap="deleteItem" data-id="{{item._id}}">删除</button>
+      </view>
+    </view>
+  </view>
+
+  <!--分页控件 简化，去掉总页数-->
+  <view class="page-bar">
+    <button bindtap="prevPage" disabled="{{page<=1}}">上一页</button>
+    <text>第{{page}}页</text>
+    <button bindtap="nextPage">下一页</button>
+  </view>
+</view>

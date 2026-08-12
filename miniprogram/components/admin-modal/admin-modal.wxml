@@ -1,0 +1,7 @@
+<view wx:if="{{visible}}" class="mask" bindtap="maskClose">
+  <view class="dialog" catchtap="stop">
+    <view class="title">管理员验证</view>
+    <input class="input" placeholder="管理员密码" password bindinput="onInput" bindconfirm="confirm" value="{{pwd}}"/>
+    <button bindtap="confirm" class="btn">确认</button>
+  </view>
+</view>

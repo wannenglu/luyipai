@@ -1,0 +1,6 @@
+{
+  "name": "getVersionList",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

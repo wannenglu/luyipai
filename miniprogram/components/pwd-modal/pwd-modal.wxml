@@ -1,0 +1,30 @@
+<view wx:if="{{visible}}" class="mask" bindtap="handleMaskClick">
+  <view class="dialog" catchtap="stopBubble">
+    <view class="title">请输入访问密码</view>
+
+    <view class="tip-wrap">
+      <view class="tip-text">💡关注公众号获取密码</view>
+      <view class="official">公众号：<text class="green">路忆派</text></view>
+      <view class="keyword">发送关键词：<text class="green">密码</text></view>
+      <image class="qr-img" src="/images/ewm.jpg" mode="widthFix"
+             show-menu-by-longpress
+             bindtap="previewQr">
+      </image>
+      <view class="qr-tip">点击放大 | 长按图片识别二维码</view>
+    </view>
+
+    <view class="input-wrap">
+      <input class="pwd-input" placeholder="请输入密码"
+             password="{{isPwdHide}}"
+             value="{{pwd}}"
+             bindinput="onInput"
+             bindconfirm="submitPwd"/>
+      <!-- 关键：catchtap 阻止冒泡，解决点击失效 -->
+      <view class="eye-btn" catchtap="togglePwdShow">
+        {{isPwdHide ? '👁️' : '🙈'}}
+      </view>
+    </view>
+
+    <button bindtap="submitPwd" class="btn">验证并进入</button>
+  </view>
+</view>

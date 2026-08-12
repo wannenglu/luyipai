@@ -1,0 +1,63 @@
+<!-- 密码弹窗组件 -->
+<pwd-modal visible="{{showAccessPwdModal}}" bind:inputconfirm="checkAccessPwd" bind:pwdinput="onPwdInput"></pwd-modal>
+<admin-modal visible="{{showAdminPwdModal}}" bind:adminconfirm="onAdminPwdConfirm"></admin-modal>
+
+<view wx:if="{{passAuth}}">
+  <!-- 标题区域，连续点击5次唤起管理员弹窗 -->
+  <view class="header" bindtap="onTitleTap">
+    <view class="title">微信PC历史版本</view>
+    <!-- <view class="sub">点击标题5次进入管理后台</view> -->
+  </view>
+
+  <!-- 搜索框 -->
+  <view class="search-wrap">
+    <input class="search-input" placeholder="搜索版本号" value="{{keyword}}" bindinput="onSearchInput"/>
+    <view wx:if="{{keyword}}" class="search-clear" catchtap="clearSearch">×</view>
+  </view>
+
+  <view class="qrcode-btn" bindtap="showQrcodeModal">
+    <text>▦ 查看公众号二维码</text>
+  </view>
+
+  <!-- 版本列表 -->
+  <view wx:if="{{versionList.length === 0}}" class="empty">暂无版本数据</view>
+  <view wx:else class="list">
+    
+    <view wx:for="{{versionList}}" wx:key="_id" class="item">
+      <!-- 第1行：版本号 + remark标签 -->
+      <view class="item-head">
+        <text class="ver">版本 {{item.version}}</text>
+        <text wx:if="{{item.remark}}" class="remark-tag">{{item.remark}}</text>
+      </view>
+      <!-- 第2行：发布日期 -->
+      <view class="date-row">
+        <text class="date">{{item.releaseDate}}</text>
+      </view>
+
+      <!-- 更新日志区域 -->
+      <view class="log-wrap">
+        <view class="log-text">
+          {{item.updateDesc}}
+        </view>
+      </view>
+
+      <!-- 右下角复制按钮 -->
+      <button class="copy-btn" bindtap="copyLink" data-link="{{item.aliyunLink}}">复制链接</button>
+    </view>
+  </view>
+</view>
+
+<!-- 二维码弹窗 -->
+<view wx:if="{{showQrcode}}" class="qrcode-mask" bindtap="closeQrcode">
+  <view class="modal-inner" catchtap="stopBubble">
+    <view class="modal-title">关注公众号 路忆派</view>
+    <image class="ewm" src="/images/ewm.jpg" mode="widthFix" show-menu-by-longpress bindtap="previewImg"></image>
+    <view class="modal-close" bindtap="closeQrcode">关闭</view>
+  </view>
+</view>
+
+<!-- 列表底部分页提示 -->
+<view wx:if="{{versionList.length > 0}}" class="page-tip">
+  {{noMore ? "已加载全部版本" : ""}}
+</view>
+

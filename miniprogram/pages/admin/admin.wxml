@@ -1,0 +1,36 @@
+<view class="container">
+  <view wx:if="{{form._id}}" class="edit-tip">
+    当前为编辑模式｜<text class="reset-btn" bindtap="resetToAdd">点击返回新增</text>
+  </view>
+  <view class="form-item">
+    <view class="label">版本号</view>
+    <input class="input" placeholder="例如 3.9.0" value="{{form.version}}" bindinput="onInputChange" data-key="version"/>
+  </view>
+  <view class="form-item">
+    <view class="label">发布日期</view>
+    <picker mode="date" value="{{form.releaseDate}}" bindchange="onDateChange">
+      <view class="input">{{form.releaseDate}}</view>
+    </picker>
+  </view>
+  <view class="form-item">
+    <view class="label">访问密码</view>
+    <input class="input" placeholder="留空默认wxpc" value="{{form.password}}" bindinput="onInputChange" data-key="password"/>
+  </view>
+  <view class="form-item">
+    <view class="label">下载链接</view>
+    <input class="input" placeholder="直链地址" value="{{form.aliyunLink}}" bindinput="onInputChange" data-key="aliyunLink"/>
+  </view>
+  <view class="form-item">
+    <view class="label">备注标签</view>
+    <picker mode="selector" value="{{remarkIndex}}" range="{{remarkOptions}}" bindchange="onRemarkChange">
+      <view class="input">{{form.remark}}</view>
+    </picker>
+  </view>
+  <view class="form-item">
+    <view class="label">更新日志</view>
+    <textarea class="textarea" placeholder="填写更新日志，支持换行" value="{{form.updateDesc}}" bindinput="onInputChange" data-key="updateDesc"></textarea>
+  </view>
+
+  <button class="save-btn" bindtap="saveItem">{{form._id ? "保存修改" : "保存新增版本"}}</button>
+  <button class="list-btn" bindtap="goToListPage">查看已有版本列表</button>
+</view>
