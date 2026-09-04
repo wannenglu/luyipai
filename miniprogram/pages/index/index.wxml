@@ -36,9 +36,7 @@
 
       <!-- 更新日志区域 -->
       <view class="log-wrap">
-        <view class="log-text">
-          {{item.updateDesc}}
-        </view>
+        <view class="log-text">{{item.updateDesc}}</view>
       </view>
 
       <!-- 右下角复制按钮 -->
