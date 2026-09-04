@@ -105,6 +105,9 @@ page{
   font-size: 28rpx;
   color: #555;
   line-height: 1.6;
+  word-break: break-all;
+  word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .copy-btn{

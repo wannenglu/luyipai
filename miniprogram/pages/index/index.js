@@ -20,6 +20,7 @@ Page({
   },
   onLoad() {
     this.loadLatestPassword()
+
     // 页面加载初始化广告
     // this.initVideoAd()
   },
@@ -123,6 +124,7 @@ Page({
       const rawList = res.result.data || []
       const list = rawList.map(item => ({
         ...item,
+        updateDesc: (item.updateDesc || '').trim(),
         expand: false,
         isExpandable: false
       }))
@@ -247,5 +249,14 @@ Page({
       wx.showToast({ title: '配置读取失败', icon: 'none' })
     }
     wx.hideLoading()
+  },
+
+  // 右上角转发分享
+  onShareAppMessage() {
+    return {
+      title: '微信PC历史版本查询',
+      path: '/pages/index/index',
+      imageUrl: "" // 可填线上分享图，不填默认截图
+    }
   }
 })
