@@ -16,9 +16,14 @@ page{
   margin-top:10rpx;
 }
 
-/* 搜索框修复 */
-.search-wrap{
+/* 搜索行：搜索框 + 刷新按钮 */
+.search-row{
   margin:20rpx 30rpx;
+  display:flex;
+  align-items:center;
+}
+.search-wrap{
+  flex:1;
   position:relative;
 }
 .search-input{
@@ -41,6 +46,20 @@ page{
   color:#999;
   padding:0 10rpx;
   z-index:2;
+}
+
+.refresh-btn{
+  width:88rpx;
+  height:88rpx;
+  margin-left:20rpx;
+  background:#fff;
+  border-radius:12rpx;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:44rpx;
+  color:#007aff;
+  flex-shrink:0;
 }
 
 .qrcode-btn{
@@ -114,7 +133,7 @@ page{
   background:#007aff;
   color:#fff;
   font-size:26rpx;
-  width:220rpx;
+  width:240rpx;
 }
 
 /* 二维码弹窗样式 */

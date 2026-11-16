@@ -27,6 +27,25 @@
 .input::placeholder{
   color:#bbbbbb;
 }
+/*访问密码：输入框 + 随机生成按钮*/
+.pwd-row{
+  display:flex;
+  align-items:center;
+  gap:20rpx;
+}
+.pwd-row .input{
+  flex:1;
+}
+.gen-btn{
+  flex-shrink:0;
+  height:88rpx;
+  line-height:88rpx;
+  padding:0 28rpx;
+  background:#007aff;
+  color:#fff;
+  border-radius:10rpx;
+  font-size:28rpx;
+}
 /*多行文本域*/
 .textarea{
   width:100%;
@@ -41,6 +60,16 @@
 }
 .textarea::placeholder{
   color:#bbbbbb;
+}
+/*更新日志快捷文本*/
+.quick-tag{
+  display:inline-block;
+  margin-top:16rpx;
+  padding:12rpx 24rpx;
+  background:#eef4ff;
+  color:#3478e8;
+  border-radius:8rpx;
+  font-size:26rpx;
 }
 
 .save-btn{

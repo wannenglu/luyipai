@@ -12,10 +12,15 @@
       <view class="input">{{form.releaseDate}}</view>
     </picker>
   </view>
+  <!-- 访问密码暂时隐藏，需要时取消注释即可恢复
   <view class="form-item">
     <view class="label">访问密码</view>
-    <input class="input" placeholder="留空默认wxpc" value="{{form.password}}" bindinput="onInputChange" data-key="password"/>
+    <view class="pwd-row">
+      <input class="input" placeholder="留空默认wxpc" value="{{form.password}}" bindinput="onInputChange" data-key="password"/>
+      <view class="gen-btn" bindtap="genPassword">随机生成</view>
+    </view>
   </view>
+  -->
   <view class="form-item">
     <view class="label">下载链接</view>
     <input class="input" placeholder="直链地址" value="{{form.aliyunLink}}" bindinput="onInputChange" data-key="aliyunLink"/>
@@ -29,6 +34,7 @@
   <view class="form-item">
     <view class="label">更新日志</view>
     <textarea class="textarea" placeholder="填写更新日志，支持换行" value="{{form.updateDesc}}" bindinput="onInputChange" data-key="updateDesc"></textarea>
+    <view class="quick-tag" catchtap="addQuickText">- 修复一些已知问题。</view>
   </view>
 
   <button class="save-btn" bindtap="saveItem">{{form._id ? "保存修改" : "保存新增版本"}}</button>

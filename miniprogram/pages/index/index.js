@@ -1,14 +1,13 @@
-const { copyText, debounce } = require("../../utils/tool")
-const app = getApp()
-// 页面全局广告实例
-// let videoAd = null
-// // 替换成你自己流量主激励广告ID
-// const AD_UNIT_ID = "adunit-xxxxxxxxxxxxxxxx"
+const { copyText, debounce } = require("../../utils/tool");
+const app = getApp();
+
+// 流量主激励视频广告位 ID，替换成你自己的
+const AD_UNIT_ID = "adunit-4130215d8c8d4222";
+// 每个版本解锁一次，按“版本ID + 日期”缓存，隔天需重新观看
+const UNLOCK_STORAGE_KEY = "unlocked_versions";
 
 Page({
   data: {
-    showAccessPwdModal: true,
-    passAuth: false,
     keyword: "",
     versionList: [],
     showQrcode: false,
@@ -16,247 +15,286 @@ Page({
     page: 1,
     pageSize: 10,
     noMore: false,
-    isRequesting: false
+    isRequesting: false,
   },
   onLoad() {
-    this.loadLatestPassword()
-
-    // 页面加载初始化广告
-    // this.initVideoAd()
+    this.videoAd = null;
+    this.pendingLink = "";
+    this.pendingId = "";
+    this.isShowingAd = false;
+    this.initVideoAd();
+    this.loadVersionList(false);
   },
   onReachBottom() {
-    // console.log("【触底事件触发】", this.data.noMore, this.data.isRequesting)
-    if (this.data.noMore || this.data.isRequesting) return
-    this.loadVersionList(true)
+    if (this.data.noMore || this.data.isRequesting) return;
+    this.loadVersionList(true);
   },
-  // 初始化激励广告
-  // initVideoAd() {
-  //   if (!wx.createRewardedVideoAd) return
-  //   videoAd = wx.createRewardedVideoAd({ adUnitId: AD_UNIT_ID })
-  //   // 广告加载失败自动重试
-  //   videoAd.onError(() => {
-  //     videoAd.load()
-  //   })
-  //   // 广告关闭回调
-  // videoAd.onClose(res => {
-  //   // res.isEnded = true 代表完整看完广告
-  //   if (res && res.isEnded) {
-  //     // 执行复制链接
-  //     this.doCopyLink(this.tempLink)
-  //   } else {
-  //     wx.showToast({ title: '广告未看完，无法复制链接', icon: 'none' })
-  //   }
-  // }) 
-  //   // 预加载广告
-  //   video.load()
-  // },
-  // // 缓存待复制链接，唤起广告
-  // showAdBeforeCopy(e) {
-  //   const link = e.currentTarget.dataset.link
-  //   if (!link) return
-  //   this.tempLink = link
-  //   // 展示广告
-  //   videoAd.show().catch(() => {
-  //     // 展示失败重新加载再弹出
-  //     videoAd.load().then(() => videoAd.show())
-  //   })
-  // },
-  // // 真正复制链接（看完广告后执行）
-  // async doCopyLink(link) {
-  //   const success = await copyText(link)
-  //   if (success) wx.showToast({ title: '下载链接已复制' })
-  //   else wx.showToast({ title: '复制失败', icon: 'none' })
-  //   // 看完广告重新预加载下一次广告
-  //   videoAd.load()
-  // },
 
-  async loadLatestPassword() {
-    wx.showLoading({ title: "初始化中" })
-    try {
-      const res = await wx.cloud.callFunction({ name: "getLatestVersion" })
-      const data = res.result.data || []
-      if (data.length > 0) {
-        app.globalData.latestPwd = data[0].password || ""
-        const localSavePwd = wx.getStorageSync("access_pwd")
-        if (localSavePwd && localSavePwd === app.globalData.latestPwd) {
-          this.setData({ passAuth: true, showAccessPwdModal: false })
-          this.loadVersionList(false)
-        }
+  // 初始化并预加载激励视频广告
+  initVideoAd() {
+    if (!wx.createRewardedVideoAd) {
+      console.warn("当前基础库不支持激励视频广告，走兜底逻辑");
+      return;
+    }
+    if (!AD_UNIT_ID || AD_UNIT_ID.indexOf("xxxx") !== -1) {
+      console.warn("请先配置激励视频广告位 ID，当前走兜底逻辑");
+      return;
+    }
+    const videoAd = wx.createRewardedVideoAd({ adUnitId: AD_UNIT_ID });
+    videoAd.onError((err) => {
+      console.error("激励视频广告错误", err);
+    });
+    videoAd.onClose((res) => {
+      this.isShowingAd = false;
+      // res.isEnded 为 true 表示完整看完广告
+      if (res && res.isEnded) {
+        this.rewardSuccess();
+      } else {
+        this.pendingLink = "";
+        this.pendingId = "";
+        wx.showToast({ title: "完整观看广告才能获取链接", icon: "none" });
+        videoAd.load().catch(() => {});
       }
-    } catch (err) {
-      wx.showToast({ title: '初始化加载失败', icon: 'none' })
-    } finally {
-      wx.hideLoading()
-    }
+    });
+    this.videoAd = videoAd;
+    videoAd.load().catch(() => {});
   },
 
-  checkAccessPwd(e) {
-    const inputPwd = e.detail.pwd
-    const targetPwd = app.globalData.latestPwd
-    // console.log(e.detail.pwd)
-    // console.log(targetPwd)
-    if (!targetPwd) {
-      wx.showToast({ title: '配置未就绪，请稍后重试', icon: 'none' })
-      return
+  // 点击“看广告获取链接”
+  getLink(e) {
+    const { link, id } = e.currentTarget.dataset;
+    if (!link) return;
+    // 当天已解锁过该版本，直接复制
+    if (this.isUnlocked(id)) {
+      this.copyLinkAndTip(link);
+      return;
     }
-    if (inputPwd === targetPwd) {
-      wx.setStorageSync("access_pwd", inputPwd)
-      this.setData({ passAuth: true, showAccessPwdModal: false })
-      this.loadVersionList(false)
-    } else {
-      wx.showToast({ title: '密码错误', icon: 'none' })
+    // 未配置广告或基础库不支持，直接兜底
+    if (!this.videoAd) {
+      this.copyLinkAndTip(link, "广告暂不可用，已直接为你获取链接");
+      return;
     }
+    if (this.isShowingAd) return;
+    this.pendingLink = link;
+    this.pendingId = id;
+    this.showRewardedAd();
+  },
+
+  showRewardedAd() {
+    const videoAd = this.videoAd;
+    this.isShowingAd = true;
+    videoAd.show().catch(() => {
+      // 首次展示失败，重新加载后再试一次
+      return videoAd
+        .load()
+        .then(() => videoAd.show())
+        .catch(() => {
+          // 仍然失败，走兜底，直接提供链接
+          this.isShowingAd = false;
+          this.giveUpAd();
+        });
+    });
+  },
+
+  // 广告无法获取时的兜底
+  giveUpAd() {
+    const link = this.pendingLink;
+    this.pendingLink = "";
+    this.pendingId = "";
+    if (!link) return;
+    this.copyLinkAndTip(link, "广告暂时无法加载，已直接为你获取链接");
+  },
+
+  // 完整看完广告
+  rewardSuccess() {
+    const link = this.pendingLink;
+    const id = this.pendingId;
+    this.pendingLink = "";
+    this.pendingId = "";
+    if (!link) return;
+    this.markUnlocked(id);
+    this.copyLinkAndTip(link);
+    if (this.videoAd) this.videoAd.load().catch(() => {});
+  },
+
+  getTodayKey() {
+    const d = new Date();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  },
+
+  isUnlocked(id) {
+    if (!id) return false;
+    const cache = wx.getStorageSync(UNLOCK_STORAGE_KEY) || {};
+    return cache[id] === this.getTodayKey();
+  },
+
+  markUnlocked(id) {
+    if (!id) return;
+    const cache = wx.getStorageSync(UNLOCK_STORAGE_KEY) || {};
+    cache[id] = this.getTodayKey();
+    wx.setStorageSync(UNLOCK_STORAGE_KEY, cache);
+  },
+
+  async copyLinkAndTip(link, tip) {
+    const success = await copyText(link);
+    if (!success) {
+      wx.showToast({ title: "复制失败，请重试", icon: "none" });
+      return;
+    }
+    wx.showToast({
+      title: tip || "链接已复制，请到浏览器打开",
+      icon: "none",
+      duration: 2000,
+    });
   },
 
   async loadVersionList(isLoadMore = false) {
-    if (this.data.isRequesting) return
-    this.setData({ isRequesting: true })
-    wx.showLoading({ title: isLoadMore ? "加载更多" : "加载中" })
+    if (this.data.isRequesting) return;
+    this.setData({ isRequesting: true });
+    wx.showLoading({ title: isLoadMore ? "加载更多" : "加载中" });
     try {
-      let { page, pageSize, keyword } = this.data
-      if (isLoadMore) {
-        page += 1
-      }
+      const { pageSize, keyword } = this.data;
+      // 加载更多才递增页码，刷新/搜索始终请求第 1 页
+      const page = isLoadMore ? this.data.page + 1 : 1;
       const res = await wx.cloud.callFunction({
         name: "getVersionList",
-        data: { page, pageSize, keyword }
-      })
-      const rawList = res.result.data || []
-      const list = rawList.map(item => ({
+        data: { page, pageSize, keyword },
+      });
+      const rawList = res.result.data || [];
+      const list = rawList.map((item) => ({
         ...item,
-        updateDesc: (item.updateDesc || '').trim(),
+        updateDesc: (item.updateDesc || "").trim(),
         expand: false,
-        isExpandable: false
-      }))
+        isExpandable: false,
+      }));
 
       if (!isLoadMore) {
-        this.setData({
-          versionList: list,
-          page: 1,
-          noMore: list.length < pageSize
-        }, () => {
-          setTimeout(() => this.calcTextOverflow(), 200)
-        })
+        this.setData(
+          {
+            versionList: list,
+            page: 1,
+            noMore: list.length < pageSize,
+          },
+          () => {
+            setTimeout(() => this.calcTextOverflow(), 200);
+          },
+        );
       } else {
-        const newList = [...this.data.versionList, ...list]
-        this.setData({
-          versionList: newList,
-          page: page,
-          noMore: list.length < pageSize
-        }, () => {
-          setTimeout(() => this.calcTextOverflow(), 200)
-        })
+        const newList = [...this.data.versionList, ...list];
+        this.setData(
+          {
+            versionList: newList,
+            page: page,
+            noMore: list.length < pageSize,
+          },
+          () => {
+            setTimeout(() => this.calcTextOverflow(), 200);
+          },
+        );
       }
     } catch (err) {
-      wx.showToast({ title: '读取列表失败', icon: 'none' })
+      wx.showToast({ title: "读取列表失败", icon: "none" });
     } finally {
-      wx.hideLoading()
-      this.setData({ isRequesting: false })
+      wx.hideLoading();
+      this.setData({ isRequesting: false });
     }
   },
 
   calcTextOverflow() {
     setTimeout(() => {
-      const query = wx.createSelectorQuery().in(this)
-      query.selectAll('.log-text').boundingClientRect()
-      query.exec(res => {
-        const rectList = res[0] || []
-        const list = [...this.data.versionList]
-        const LIMIT_HEIGHT = 60
+      const query = wx.createSelectorQuery().in(this);
+      query.selectAll(".log-text").boundingClientRect();
+      query.exec((res) => {
+        const rectList = res[0] || [];
+        const list = [...this.data.versionList];
+        const LIMIT_HEIGHT = 60;
         rectList.forEach((rect, idx) => {
-          if (!rect) return
-          // console.log(`第${idx}条文字高度：`, rect.height)
-          list[idx].isExpandable = rect.height > LIMIT_HEIGHT
-        })
-        this.setData({ versionList: list })
-      })
-    }, 250)
+          if (!rect) return;
+          list[idx].isExpandable = rect.height > LIMIT_HEIGHT;
+        });
+        this.setData({ versionList: list });
+      });
+    }, 250);
   },
 
   onSearchInput: debounce(function (e) {
-    const keyword = e.detail.value.toLowerCase()
+    const keyword = e.detail.value.toLowerCase();
     this.setData({ keyword }, () => {
-      this.loadVersionList(false)
-    })
+      this.loadVersionList(false);
+    });
   }, 300),
 
   clearSearch() {
     this.setData({ keyword: "" }, () => {
-      this.loadVersionList(false)
-    })
+      this.loadVersionList(false);
+    });
+  },
+
+  // 刷新当前版本列表（保留搜索关键词）
+  refreshList() {
+    if (this.data.isRequesting) return;
+    this.loadVersionList(false);
   },
 
   toggleExpand(e) {
-    const id = e.currentTarget.dataset.id
-    const list = this.data.versionList.map(item => {
-      if (item._id === id) item.expand = !item.expand
-      return item
-    })
-    this.setData({ versionList: list })
+    const id = e.currentTarget.dataset.id;
+    const list = this.data.versionList.map((item) => {
+      if (item._id === id) item.expand = !item.expand;
+      return item;
+    });
+    this.setData({ versionList: list });
   },
-
-  // 原始直接复制逻辑（启用）
-  async copyLink(e) {
-    const link = e.currentTarget.dataset.link
-    if (!link) return
-    const success = await copyText(link)
-    if (success) wx.showToast({ title: '链接已复制' })
-    else wx.showToast({ title: '复制失败', icon: 'none' })
-  },
-  // 旧复制方法废弃，替换为广告唤起
-  // copyLink(e) {
-  //   this.showAdBeforeCopy(e)
-  // },
 
   showQrcodeModal() {
-    this.setData({ showQrcode: true })
+    this.setData({ showQrcode: true });
   },
   closeQrcode() {
-    this.setData({ showQrcode: false })
+    this.setData({ showQrcode: false });
   },
   previewImg() {
-    wx.previewImage({ urls: ["/images/ewm.jpg"] })
+    wx.previewImage({ urls: ["/images/ewm.jpg"] });
   },
 
-  stopBubble() {
-  },
+  stopBubble() {},
 
   onTitleTap() {
-    app.globalData.adminClickCount++
-    clearTimeout(app.globalData.adminClickTimer)
+    app.globalData.adminClickCount++;
+    clearTimeout(app.globalData.adminClickTimer);
     app.globalData.adminClickTimer = setTimeout(() => {
-      app.globalData.adminClickCount = 0
-    }, 2000)
+      app.globalData.adminClickCount = 0;
+    }, 2000);
     if (app.globalData.adminClickCount >= 5) {
-      app.globalData.adminClickCount = 0
-      this.setData({ showAdminPwdModal: true })
+      app.globalData.adminClickCount = 0;
+      this.setData({ showAdminPwdModal: true });
     }
   },
 
   async onAdminPwdConfirm(e) {
-    const inputPwd = e.detail.pwd.trim()
-    wx.showLoading()
+    const inputPwd = e.detail.pwd.trim();
+    wx.showLoading();
     try {
-      const res = await wx.cloud.callFunction({ name: "getAdminConfig" })
-      const realPwd = res.result.publish_password
+      const res = await wx.cloud.callFunction({ name: "getAdminConfig" });
+      const realPwd = res.result.publish_password;
       if (inputPwd === realPwd) {
-        wx.navigateTo({ url: "/pages/admin/admin" })
-        this.setData({ showAdminPwdModal: false })
+        wx.navigateTo({ url: "/pages/admin/admin" });
+        this.setData({ showAdminPwdModal: false });
       } else {
-        wx.showToast({ title: '管理员密码错误', icon: 'none' })
+        wx.showToast({ title: "管理员密码错误", icon: "none" });
       }
     } catch (err) {
-      wx.showToast({ title: '配置读取失败', icon: 'none' })
+      wx.showToast({ title: "配置读取失败", icon: "none" });
     }
-    wx.hideLoading()
+    wx.hideLoading();
   },
 
   // 右上角转发分享
   onShareAppMessage() {
     return {
-      title: '微信PC历史版本查询',
-      path: '/pages/index/index',
-      imageUrl: "" // 可填线上分享图，不填默认截图
-    }
-  }
-})
+      title: "微信PC历史版本查询",
+      path: "/pages/index/index",
+      imageUrl: "", // 可填线上分享图，不填默认截图
+    };
+  },
+});

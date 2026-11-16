@@ -1,8 +1,11 @@
 <view class="container">
-  <!--搜索区域-->
+  <!--搜索区域：输入即检索 + 刷新-->
   <view class="search-bar">
-    <input class="search-input" placeholder="输入版本号搜索" value="{{keyword}}" bindinput="onKeywordInput"/>
-    <button class="search-btn" bindtap="searchData">搜索</button>
+    <view class="search-wrap">
+      <input class="search-input" placeholder="输入版本号搜索" value="{{keyword}}" bindinput="onKeywordInput"/>
+      <view wx:if="{{keyword}}" class="search-clear" catchtap="clearKeyword">×</view>
+    </view>
+    <view class="refresh-btn" bindtap="refreshList">↻</view>
   </view>
 
   <!--无数据提示-->

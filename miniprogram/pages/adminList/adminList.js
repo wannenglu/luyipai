@@ -1,3 +1,4 @@
+const { debounce } = require("../../utils/tool")
 const LIMIT = 10;
 Page({
   data:{
@@ -5,17 +6,30 @@ Page({
     keyword:"",
     page:1
   },
+  reqId: 0,
   onLoad(){
     this.loadData()
   },
-  onKeywordInput(e){
-    this.setData({keyword:e.detail.value})
+  // 输入即检索，防抖 300ms
+  onKeywordInput: debounce(function(e){
+    this.setData({keyword:e.detail.value, page:1}, ()=>{
+      this.loadData()
+    })
+  }, 300),
+  // 刷新，回到第一页
+  refreshList(){
+    this.setData({page:1}, ()=>{
+      this.loadData()
+    })
   },
-  searchData(){
-    this.setData({page:1})
-    this.loadData()
+  // 清空搜索关键词并恢复完整列表
+  clearKeyword(){
+    this.setData({keyword:"", page:1}, ()=>{
+      this.loadData()
+    })
   },
   async loadData(){
+    const reqId = ++this.reqId
     wx.showLoading({title:"加载中"})
     try{
       const { keyword, page } = this.data
@@ -27,13 +41,17 @@ Page({
           pageSize: LIMIT
         }
       })
-      console.log('云函数返回', res.result)
-      // 核心修改：后端返回 data 字段，不是 list
+      // 只采用最后一次请求的结果，避免快速输入时旧结果覆盖新结果
+      if(reqId !== this.reqId) return
       const list = res.result.data || []
       this.setData({list})
     }catch(err){
-      console.error('加载失败', err)
-      wx.showToast({title:"加载失败",icon:"none"})
+      if(reqId === this.reqId){
+        console.error('加载失败', err)
+        wx.hideLoading()
+        wx.showToast({title:"加载失败",icon:"none"})
+      }
+      return
     }
     wx.hideLoading()
   },
@@ -57,7 +75,11 @@ Page({
   },
   editItem(e){
     const _id = e.currentTarget.dataset.id
-    console.log('点击编辑，id：', _id)
+    // 列表已有完整数据，先缓存给编辑页立即回填，避免详情接口失败时表单为空
+    const item = this.data.list.find(v => v._id === _id)
+    if(item){
+      wx.setStorageSync("editing_version", item)
+    }
     wx.navigateTo({
       url:`/pages/admin/admin?_id=${_id}`
     })

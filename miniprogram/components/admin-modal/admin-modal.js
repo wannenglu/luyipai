@@ -6,7 +6,8 @@ Component({
     }
   },
   data:{
-    pwd:""
+    pwd:"",
+    pwdHide:true
   },
   methods:{
     stop(){},
@@ -15,6 +16,10 @@ Component({
       this.setData({
         pwd: e.detail.value
       })
+    },
+    // 切换密码显示/隐藏
+    togglePwd(){
+      this.setData({pwdHide: !this.data.pwdHide})
     },
     confirm(){
       const val = this.data.pwd.trim()

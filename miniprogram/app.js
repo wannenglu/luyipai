@@ -1,6 +1,5 @@
 App({
   globalData: {
-    latestPwd: "",
     adminClickCount: 0,
     adminClickTimer: null
   },
