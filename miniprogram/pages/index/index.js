@@ -5,6 +5,9 @@ const app = getApp();
 const AD_UNIT_ID = "adunit-4130215d8c8d4222";
 // 每个版本解锁一次，按“版本ID + 日期”缓存，隔天需重新观看
 const UNLOCK_STORAGE_KEY = "unlocked_versions";
+// 每天免费获取次数，用完后再看激励视频
+const FREE_TIMES_PER_DAY = 3;
+const FREE_STORAGE_KEY = "daily_free_usage";
 
 Page({
   data: {
@@ -16,14 +19,24 @@ Page({
     pageSize: 10,
     noMore: false,
     isRequesting: false,
+    freeTimes: FREE_TIMES_PER_DAY,
+    freeLeft: FREE_TIMES_PER_DAY,
+    latestId: "",
+    unlocked: {},
   },
   onLoad() {
     this.videoAd = null;
     this.pendingLink = "";
     this.pendingId = "";
     this.isShowingAd = false;
+    this.isClaiming = false;
     this.initVideoAd();
+    this.refreshFreeLeft();
+    this.syncQuotaFromCloud();
     this.loadVersionList(false);
+  },
+  onShow() {
+    this.refreshFreeLeft();
   },
   onReachBottom() {
     if (this.data.noMore || this.data.isRequesting) return;
@@ -60,24 +73,130 @@ Page({
     videoAd.load().catch(() => {});
   },
 
-  // 点击“看广告获取链接”
-  getLink(e) {
+  // 点击获取链接：优先使用云端每日配额，换设备/清缓存也不会重置
+  async getLink(e) {
     const { link, id } = e.currentTarget.dataset;
     if (!link) return;
-    // 当天已解锁过该版本，直接复制
+    if (this.isShowingAd) return;
+    // 防止连续点击重复扣次数
+    if (this.isClaiming) return;
+    this.isClaiming = true;
+    // 本地已解锁该版本（当天），直接复制
     if (this.isUnlocked(id)) {
+      this.isClaiming = false;
       this.copyLinkAndTip(link);
       return;
     }
-    // 未配置广告或基础库不支持，直接兜底
-    if (!this.videoAd) {
-      this.copyLinkAndTip(link, "广告暂不可用，已直接为你获取链接");
+    wx.showLoading({ title: "正在获取", mask: true });
+    let result = null;
+    try {
+      const res = await wx.cloud.callFunction({
+        name: "versionQuota",
+        data: { action: "claim", id, allowFree: id !== this.latestId },
+      });
+      result = res.result;
+    } catch (err) {
+      console.error("配额校验失败", err);
+    } finally {
+      this.isClaiming = false;
+      wx.hideLoading();
+    }
+    // 云端不可用时走本地逻辑兜底
+    if (!result) {
+      this.localClaim(link, id);
       return;
     }
-    if (this.isShowingAd) return;
+    this.applyQuota(result);
+    if (result.ok) {
+      this.markUnlocked(id);
+      this.copyLinkAndTip(
+        link,
+        result.freeLeft > 0
+          ? `链接已复制，今日还可免费获取 ${result.freeLeft} 次`
+          : "链接已复制，请到浏览器打开",
+      );
+      return;
+    }
+    // 免费次数用完，需要看广告
+    if (!this.videoAd) {
+      this.copyLinkAndTip(link, "广告暂不可用，已直接为你获取链接");
+      this.reportUnlock(id);
+      return;
+    }
     this.pendingLink = link;
     this.pendingId = id;
     this.showRewardedAd();
+  },
+
+  // 云端不可用时的本地兜底
+  localClaim(link, id) {
+    const needAdFirst = id && id === this.latestId;
+    if (!needAdFirst && this.getFreeLeft() > 0) {
+      this.consumeFree();
+      this.markUnlocked(id);
+      this.copyLinkAndTip(
+        link,
+        `链接已复制，今日还可免费获取 ${this.getFreeLeft()} 次`,
+      );
+      return;
+    }
+    if (!this.videoAd) {
+      this.copyLinkAndTip(link, "广告暂不可用，已直接为你获取链接");
+      this.reportUnlock(id);
+      return;
+    }
+    this.pendingLink = link;
+    this.pendingId = id;
+    this.showRewardedAd();
+  },
+
+  // 把云端返回的免费次数同步到本地
+  applyQuota(result) {
+    if (!result || typeof result.freeLeft !== "number") return;
+    this.setData({ freeLeft: result.freeLeft });
+    wx.setStorageSync(FREE_STORAGE_KEY, {
+      date: this.getTodayKey(),
+      used: FREE_TIMES_PER_DAY - result.freeLeft,
+    });
+  },
+
+  // 进入小程序时同步云端的免费次数与已解锁版本
+  async syncQuotaFromCloud() {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: "versionQuota",
+        data: { action: "query" },
+      });
+      const result = res.result;
+      if (!result) return;
+      const today = this.getTodayKey();
+      // 云端为准：覆盖本地缓存，云端清空后本地状态随之清空
+      const cache = {};
+      const unlocked = {};
+      (result.unlocked || []).forEach((id) => {
+        cache[id] = today;
+        unlocked[id] = true;
+      });
+      wx.setStorageSync(UNLOCK_STORAGE_KEY, cache);
+      this.setData({ unlocked });
+      this.applyQuota(result);
+    } catch (err) {
+      console.error("配额同步失败", err);
+    }
+  },
+
+  // 记录当天已解锁到云端（看完广告或广告不可用兜底）
+  async reportUnlock(id) {
+    this.markUnlocked(id);
+    if (!id) return;
+    try {
+      await wx.cloud.callFunction({
+        name: "versionQuota",
+        data: { action: "ad", id },
+      });
+    } catch (err) {
+      console.error("解锁同步失败", err);
+    }
   },
 
   showRewardedAd() {
@@ -99,10 +218,12 @@ Page({
   // 广告无法获取时的兜底
   giveUpAd() {
     const link = this.pendingLink;
+    const id = this.pendingId;
     this.pendingLink = "";
     this.pendingId = "";
     if (!link) return;
     this.copyLinkAndTip(link, "广告暂时无法加载，已直接为你获取链接");
+    this.reportUnlock(id);
   },
 
   // 完整看完广告
@@ -112,7 +233,7 @@ Page({
     this.pendingLink = "";
     this.pendingId = "";
     if (!link) return;
-    this.markUnlocked(id);
+    this.reportUnlock(id);
     this.copyLinkAndTip(link);
     if (this.videoAd) this.videoAd.load().catch(() => {});
   },
@@ -122,6 +243,29 @@ Page({
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${d.getFullYear()}-${m}-${day}`;
+  },
+
+  // 读取当天免费使用记录，跨天自动重置
+  getFreeState() {
+    const today = this.getTodayKey();
+    const cache = wx.getStorageSync(FREE_STORAGE_KEY) || {};
+    if (cache.date !== today) return { date: today, used: 0 };
+    return { date: today, used: cache.used || 0 };
+  },
+
+  getFreeLeft() {
+    return Math.max(0, FREE_TIMES_PER_DAY - this.getFreeState().used);
+  },
+
+  refreshFreeLeft() {
+    this.setData({ freeLeft: this.getFreeLeft() });
+  },
+
+  consumeFree() {
+    const state = this.getFreeState();
+    state.used += 1;
+    wx.setStorageSync(FREE_STORAGE_KEY, state);
+    this.refreshFreeLeft();
   },
 
   isUnlocked(id) {
@@ -135,6 +279,19 @@ Page({
     const cache = wx.getStorageSync(UNLOCK_STORAGE_KEY) || {};
     cache[id] = this.getTodayKey();
     wx.setStorageSync(UNLOCK_STORAGE_KEY, cache);
+    // 同步更新按钮状态：当天已获取过的版本按钮变为“获取链接”
+    this.setData({ unlocked: { ...this.data.unlocked, [id]: true } });
+  },
+
+  // 根据当天解锁记录生成按钮状态表
+  getUnlockedMap(list) {
+    const today = this.getTodayKey();
+    const cache = wx.getStorageSync(UNLOCK_STORAGE_KEY) || {};
+    const map = {};
+    (list || []).forEach((item) => {
+      if (item._id && cache[item._id] === today) map[item._id] = true;
+    });
+    return map;
   },
 
   async copyLinkAndTip(link, tip) {
@@ -169,6 +326,11 @@ Page({
         expand: false,
         isExpandable: false,
       }));
+      // 无搜索且第一页时，第一条即为最新版本
+      if (!isLoadMore && !keyword && list.length) {
+        this.latestId = list[0]._id;
+        this.setData({ latestId: this.latestId });
+      }
 
       if (!isLoadMore) {
         this.setData(
@@ -176,6 +338,7 @@ Page({
             versionList: list,
             page: 1,
             noMore: list.length < pageSize,
+            unlocked: this.getUnlockedMap(list),
           },
           () => {
             setTimeout(() => this.calcTextOverflow(), 200);
@@ -188,6 +351,7 @@ Page({
             versionList: newList,
             page: page,
             noMore: list.length < pageSize,
+            unlocked: this.getUnlockedMap(newList),
           },
           () => {
             setTimeout(() => this.calcTextOverflow(), 200);

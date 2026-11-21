@@ -1,0 +1,9 @@
+{
+  "name": "versionQuota",
+  "version": "1.0.0",
+  "description": "按 openid 记录每日免费次数和解锁版本",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
